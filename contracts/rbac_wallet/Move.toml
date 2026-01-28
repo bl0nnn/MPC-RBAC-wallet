@@ -1,0 +1,11 @@
+[package]
+name = "rbac_wallet"
+version = "0.0.1"
+edition = "2024.beta"
+
+[dependencies]
+ika = { git = "https://github.com/dwallet-labs/ika.git", subdir = "deployed_contracts/testnet/ika", rev= "main" }
+ika_dwallet_2pc_mpc = { git = "https://github.com/dwallet-labs/ika.git", subdir = "deployed_contracts/testnet/ika_dwallet_2pc_mpc", rev= "main" }
+
+[addresses]
+rbac_wallet = "0x0"
