@@ -116,6 +116,12 @@ public struct DepositedCoins has copy, drop {
 
 }
 
+public struct MessageSigned has copy, drop {
+
+  sign_id : ID
+
+}
+
 public(package) fun wallet_created(
     wallet_id: ID,
     admin: address,
@@ -253,5 +259,13 @@ public(package) fun coins_deposited(
     deposited_by,
     ika_amount_deposited,
     sui_amount_deposited
+  });
+}
+
+public(package) fun message_signed(
+  sign_id: ID
+) {
+  event::emit(MessageSigned {
+    sign_id
   });
 }

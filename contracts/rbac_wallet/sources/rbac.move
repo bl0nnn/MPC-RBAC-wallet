@@ -205,7 +205,7 @@ module rbac_wallet::rbac{
         
         let sender = ctx.sender();
 
-        let pair_id = constants::get_pair_id(curve_id, signature_algorithm_id);
+        let pair_id = constants::get_pair_id(curve_id, signature_algorithm_id);     //1 con k1 ecdsa
         
         assert!(self.accounts.contains(sender), errors::no_member_found!());
         let role_id = *self.accounts.borrow(sender);
@@ -572,6 +572,8 @@ module rbac_wallet::rbac{
         //replenish presign pool if num of presignatures is below limit after signing (to add)
         
         self.return_payment_coins(ika, sui);
+        
+        events::message_signed(sign_id);
         sign_id
 
     }

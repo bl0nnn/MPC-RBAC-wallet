@@ -9,11 +9,18 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@algorandfoundation/algokit-utils": "^9.2.0",
     "@ika.xyz/sdk": "^0.2.7",
-    "dotenv": "^17.2.3"
+    "@noble/hashes": "^2.0.1",
+    "algosdk": "^3.5.2",
+    "dotenv": "^17.2.3",
+    "ethers": "^6.16.0",
+    "viem": "^2.45.1"
   },
   "devDependencies": {
-    "@types/node": "^25.0.9",
+    "@babel/preset-typescript": "^7.28.5",
+    "@types/node": "^25.1.0",
+    "jest": "^30.2.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }

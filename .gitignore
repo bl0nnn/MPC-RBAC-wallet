@@ -1,3 +1,8 @@
 .env
 node_modules/
 build/
+.DS_Store
+Move.lock
+Published.toml
+pnpm-lock.yaml
+package-lock.json

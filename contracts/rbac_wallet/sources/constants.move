@@ -56,9 +56,9 @@ public fun get_curve_name_from_id(curve_id: u32): String{
 
 public fun get_pair_id(curve_id: u32, signature_algorithm_id: u32): u8{
   if (curve_id == 0 && signature_algorithm_id == 0){
-    return PAIR_ID_K1_TAPROOT
-  }else if(curve_id == 0 && signature_algorithm_id == 1){
     return PAIR_ID_K1_ECDSA
+  }else if(curve_id == 0 && signature_algorithm_id == 1){
+    return PAIR_ID_K1_TAPROOT
   }else if(curve_id == 2 && signature_algorithm_id == 0){
     return PAIR_ID_ED_EDDSA
   }else if(curve_id == 1 && signature_algorithm_id == 0){
