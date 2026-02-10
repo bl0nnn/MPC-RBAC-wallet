@@ -241,7 +241,7 @@ export async function addUsers(new_users: string[], new_users_roles: number[]) {
     
         module: 'rbac',
         
-        function: 'add_account',
+        function: 'add_users',
         
         arguments: [
             transaction.object(ENV.WALLET_ADDRESS),
@@ -280,7 +280,7 @@ export async function removeUsers(users_to_remove: string[]){
     
         module: 'rbac',
         
-        function: 'remove_account',
+        function: 'remove_users',
         
         arguments: [
         transaction.object(ENV.WALLET_ADDRESS),
@@ -433,7 +433,7 @@ export async function updateUsersRole(users_to_modify: string[], new_roles_assig
     
         module: 'rbac',
         
-        function: 'update_accounts_role',
+        function: 'update_users_role',
         
         arguments: [
             transaction.object(ENV.WALLET_ADDRESS),
@@ -582,14 +582,6 @@ export async function signMessage(chain: string, amount: number, recipient: stri
 
     const ikaParams = new Uint8Array(Array.from(await ikaClient.getProtocolPublicParameters()));
 
-    console.log("--- DEBUG LUNGHEZZE BUFFER ---");
-console.log("ikaParams:", ikaParams.length); // Scommetto che questo è 112
-console.log("public_output:", dWallet.state.Active.public_output.length);
-console.log("user_secret_key_share:", (dWallet.public_user_secret_key_share ?? []).length);
-console.log("presign:", presign.state.Completed.presign.length);
-console.log("messageBytes:", messageBytes.length); // Sappiamo che è 172 per Algo
-console.log("------------------------------");
-
         
     const messageCentralizedSignature = await createUserSignMessageWithPublicOutput(
         ikaParams,
@@ -636,6 +628,7 @@ console.log("------------------------------");
     
     
     const sign_id = result.events[2].parsedJson.sign_id;
+    
 
     if(chain == "ethereum-base-sepolia"){
         sendTxToEthereumBaseSepolia(sign_id, dWallet, String(amount), recipient);
@@ -645,7 +638,6 @@ console.log("------------------------------");
         throw new Error('still to implement')
     }
 }
-//a signMessage passiamo walletID
 
 //---------- helpers ----------------
 

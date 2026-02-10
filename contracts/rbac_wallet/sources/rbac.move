@@ -20,6 +20,8 @@ module rbac_wallet::rbac{
         errors,
         events
     };
+    use rbac_wallet::errors::no_user_found;
+
     
 
     // === Structs ===
@@ -37,10 +39,13 @@ module rbac_wallet::rbac{
         
         new_admin: address,
         
-        finalization_time_ms: u64,      //the exact moment the recovery will be finallized. Will just be calculated from global clock and user's recovery time associated 
+        finalization_time_ms: u64, //the exact moment the recovery will be finallized. Will just be calculated from global clock and user's recovery time associated 
     }
 
 
+    
+    //this is the main shared object, the one incapsulating all the data of the actual wallet
+    //Uses dynamic fields to store dWallets and presignatures for scalability
     public struct RbacWallet has key, store {
         
         id: UID,
@@ -49,15 +54,15 @@ module rbac_wallet::rbac{
 
         dWallets: Table<String, DWalletCap>,        
 
-        accounts: Table<address, u8>,
+        users: Table<address, u8>,
 
         roles_config: VecMap<u8, RoleConfig>,
 
-        active_recovery: Option<RecoveryRequest>,
+        active_recovery: Option<RecoveryRequest>, //if this is none it means no recovery request is active
 
         dwallet_network_encryption_key_id: ID,
 
-        presignatures: Table<u8, vector<UnverifiedPresignCap>>,
+        presignatures: Table<u8, vector<UnverifiedPresignCap>>, //ika signatures are slow, lets speed them up with a presignatures pool (one for each curve - signature algorithm pair)
 
         ikas: Balance<IKA>,
         
@@ -66,15 +71,18 @@ module rbac_wallet::rbac{
     }
 
 
+    //=== Public Functions ===
+
+
+    //This function initializes the Wallet
     //at creation user can generate one dwallet capabillity (just one cause the dkg takes some time and we should work on timeouts on dwallet capabilities creations loop if we want to add more than one at creation + lot of gas).
-    //After that he can add other dwalletCaps for preferred chain.
-    
+    //After that he can add other dwalletCaps for preferred chain. 
     public fun create_wallet(
 
         //ika parameters
         coordinator: &mut DWalletCoordinator,
         prepareDKG_session_identifier: vector<u8>,
-        dwallet_network_encryption_key_id: ID,
+        dwallet_network_encryption_key_id: ID,      //this key its needed to take part in the MPC, receiving and sending data from/to the ika network
         centralized_public_key_share_and_proof: vector<u8>,
         user_public_output: vector<u8>,
         public_user_secret_key_share: vector<u8>,
@@ -88,26 +96,26 @@ module rbac_wallet::rbac{
         input_spending_limits: vector<u64>,
         input_recovery_times: vector<u64>,
 
-        //accounts parameters. Actual accounts passed to be members of rbac
-        input_recovery_accounts: vector<address>,
-        input_accounts_levels: vector<u8>,
+        //accounts parameters. Actual accounts passed to be users of rbac
+        input_users: vector<address>,
+        input_users_levels: vector<u8>,
 
         ctx: &mut TxContext
-    ){
+        ){
 
-
+        //always make sure each array passed as config has the same length cause we the i-th element of each to fill one user config
         let roles_len = role_ids.length();
         assert!(roles_len >= 1, errors::empty_roles_vector!());
         assert!(input_sign_abilities.length() == roles_len, errors::config_vectors_lenghts_not_matching!());
         assert!(input_spending_limits.length() == roles_len, errors::config_vectors_lenghts_not_matching!());        
         assert!(input_recovery_times.length() == roles_len, errors::config_vectors_lenghts_not_matching!());
 
-        let recovery_accounts_len = input_recovery_accounts.length();
-        assert!(recovery_accounts_len >= 1, errors::no_recovery_account_at_creationl!());
-        assert!(recovery_accounts_len == input_accounts_levels.length(), errors::recovery_accs_roles_not_matching!());
+        let input_users_len = input_users.length();
+        assert!(input_users_len >= 1, errors::no_user_at_creationl!()); //there should be at least one user at creation (an rbac cant be just the admin)
+        assert!(input_users_len == input_users_levels.length(), errors::users_roles_not_matching!());
 
 
-        let mut roles_config = vec_map::empty<u8, RoleConfig>();
+        let mut roles_config = vec_map::empty<u8, RoleConfig>();    //prob here i'll switch to tables as well
 
         let admin_config = RoleConfig {         //admin config is hardcoded to be unlimited 
             sign_ability: true, 
@@ -121,6 +129,7 @@ module rbac_wallet::rbac{
         let wallet_uid = object::new(ctx);
         let wallet_id = wallet_uid.to_inner();
 
+        //filling the roles config vector with given user inputs (this should not have any big scalability problem cause roles will be max 10)
         let mut i = 0;
         while (i < roles_len){
             let role_id = *role_ids.borrow(i);
@@ -135,20 +144,21 @@ module rbac_wallet::rbac{
         };
 
 
-        let mut accounts = table::new<address, u8>(ctx);
+        let mut users = table::new<address, u8>(ctx);
 
-        table::add(&mut accounts, wallet_creator, constants::get_admin_role_id());
+        table::add(&mut users, wallet_creator, constants::get_admin_role_id()); //pushing admin in users table then all the rest. ADMIN ROLE IS AWALYS 0
 
-        let mut initial_accounts = vector::empty<address>();
+
+        let mut initial_users = vector::empty<address>();
         i = 0;
-        while(i < recovery_accounts_len){
-            let level = *input_accounts_levels.borrow(i);
-            assert!(level != 0, errors::invalid_level_for_account!());
+        while(i < input_users_len){
+            let level = *input_users_levels.borrow(i);
+            assert!(level != 0, errors::invalid_level_for_user!());
 
-            let user_addr = *input_recovery_accounts.borrow(i);
-            if(!accounts.contains(user_addr)){
-                table::add(&mut accounts, user_addr, level);
-                initial_accounts.push_back(user_addr);
+            let user_addr = *input_users.borrow(i);
+            if(!users.contains(user_addr)){
+                table::add(&mut users, user_addr, level);
+                initial_users.push_back(user_addr);
             };
             i = i + 1;
         };
@@ -184,7 +194,7 @@ module rbac_wallet::rbac{
             id: wallet_uid,
             current_admin: wallet_creator,
             dWallets,
-            accounts,
+            users,
             roles_config,
             active_recovery: option::none(),
             dwallet_network_encryption_key_id,
@@ -193,28 +203,37 @@ module rbac_wallet::rbac{
             suis: sui_coin.into_balance()
         };
 
-        events::wallet_created(wallet_id,wallet_creator,  initial_accounts, wallet_creator);
+        events::wallet_created(wallet_id,wallet_creator,  initial_users, wallet_creator);   //emit event 
 
-        transfer::public_share_object(rbac_wallet);
+        transfer::public_share_object(rbac_wallet); //transfering the wallet ownership to the user
     }
 
 
-    public fun add_presignature_to_pool(self: &mut RbacWallet, coordinator: &mut DWalletCoordinator, curve_id: u32, signature_algorithm_id: u32, ctx: &mut TxContext){
+
+    //adds one or more presignatures to a single pool
+    //a presignature in tied to a certain curve and a signature algorithm. these pairs are defined in constants.move or in official docs https://docs.ika.xyz/docs/move-integration/getting-started
+    public fun add_presignature_to_pool(
+        self: &mut RbacWallet, 
+        coordinator: &mut DWalletCoordinator,
+        curve_id: u32, 
+        signature_algorithm_id: u32, 
+        ctx: &mut TxContext
+        ){
 
         assert!(&self.active_recovery == option::none(), errors::active_recovery!());
         
         let sender = ctx.sender();
 
-        let pair_id = constants::get_pair_id(curve_id, signature_algorithm_id);     //1 con k1 ecdsa
+        let pair_id = constants::get_pair_id(curve_id, signature_algorithm_id);
         
-        assert!(self.accounts.contains(sender), errors::no_member_found!());
-        let role_id = *self.accounts.borrow(sender);
+        assert!(self.users.contains(sender), errors::no_user_found!());
+        let role_id = *self.users.borrow(sender);
         let config = self.roles_config.get(&role_id);
-        assert!(config.sign_ability == true, errors::not_authorized!());
+        assert!(config.sign_ability == true, errors::not_authorized!());    //user must have sign ability to add presignatures
 
         let (mut ika_coin, mut sui_coin) = self.withdraw_payment_coins(ctx);
 
-
+        //if the table record for a specifc pair id doesnt exist we create it
         if (!table::contains(&self.presignatures, pair_id)) {
             table::add(&mut self.presignatures, pair_id, vector::empty());
         };
@@ -223,11 +242,9 @@ module rbac_wallet::rbac{
         assert!(pool.length() < constants::get_max_presignatures_number(), errors::presignatures_pool_full!());
 
 
-        let session_identifier = coordinator.register_session_identifier(
-            ctx.fresh_object_address().to_bytes(),
-            ctx,
-        );
+        let session_identifier = random_session_identifier(coordinator, ctx);
 
+        //Returns an unverifed presign cap (must be verified before signing)
         let presignature = coordinator.request_global_presign(
             self.dwallet_network_encryption_key_id,
             curve_id,
@@ -250,6 +267,10 @@ module rbac_wallet::rbac{
         self.return_payment_coins(ika_coin, sui_coin);
     }
 
+
+
+    //adds a dwallet capability to sign on other chains
+    //each wallet can have just one dWallet capability for curve, cant have for example 2 dWallets based on secp256k1 
     public fun add_dWallet(
         coordinator: &mut DWalletCoordinator,
         prepareDKG_session_identifier: vector<u8>,
@@ -261,17 +282,17 @@ module rbac_wallet::rbac{
 
         self: &mut RbacWallet,
         ctx: &mut TxContext
-    ){
+        ){
 
         assert!(&self.active_recovery == option::none(), errors::active_recovery!());
 
         let sender = ctx.sender();
-        assert!(self.accounts.contains(sender), errors::no_member_found!());
+        assert!(self.users.contains(sender), errors::no_user_found!());
         
         assert!(sender == self.current_admin, errors::not_authorized!());
 
         let curve_name = constants::get_curve_name_from_id(curve);
-        assert!(!self.dWallets.contains(curve_name), errors::curve_already_exists!());
+        assert!(!self.dWallets.contains(curve_name), errors::curve_already_exists!());  //check to be sure no dWallet exists on the same curve
 
         let (mut ika_coin, mut sui_coin) = self.withdraw_payment_coins(ctx);
 
@@ -302,29 +323,42 @@ module rbac_wallet::rbac{
 
     }
 
-    public fun add_account(self: &mut RbacWallet, input_accounts: vector<address>, input_accounts_levels: vector<u8>, ctx: &mut TxContext){
+
+
+
+    //adds one or more users to the wallet users with a role
+    //users can have the ability to sign transactions under a max spending limit associated to his specific role
+    //all users can recover (onlly variable here is recovery time) 
+    public fun add_users(
+        self: &mut RbacWallet, 
+        new_users: vector<address>, 
+        new_users_levels: vector<u8>, 
+        ctx: &mut TxContext
+        ){
 
         assert!(&self.active_recovery == option::none(), errors::active_recovery!());
         
         let sender = ctx.sender();
-        assert!(self.accounts.contains(sender), errors::no_member_found!());
+        assert!(self.users.contains(sender), errors::no_user_found!());
 
         assert!(sender == self.current_admin, errors::not_authorized!());
-        assert!(!input_accounts_levels.contains(&constants::get_admin_role_id()));
+        assert!(!new_users_levels.contains(&constants::get_admin_role_id()));
         
 
-        let len = input_accounts.length();
-        assert!(len == input_accounts_levels.length(), errors::recovery_accs_roles_not_matching!());
+        let len = new_users.length();
+        assert!(len == new_users_levels.length(), errors::users_roles_not_matching!());
 
-        //add check that role actually exists in configs
+        // TODO: add check 'level' exists 'roles_config'
+        // TODO: recovery time min time
 
         let mut i = 0;
         let mut added = vector::empty<address>(); 
         while(i < len){
-            let addr = *input_accounts.borrow(i);
-            let role_id = *input_accounts_levels.borrow(i);
-            if (!table::contains(&self.accounts, addr)) {
-                table::add(&mut self.accounts, addr, role_id);
+            let addr = *new_users.borrow(i);
+            let role_id = *new_users_levels.borrow(i);
+            assert!(self.roles_config.contains(&role_id), errors::role_doesnt_exist!());
+            if (!table::contains(&self.users, addr)) {
+                table::add(&mut self.users, addr, role_id);
                 added.push_back(addr);
 
             };
@@ -338,29 +372,36 @@ module rbac_wallet::rbac{
 
     }
 
-    //be sure at least one account remains for recovery
-    public fun remove_account(self: &mut RbacWallet, accounts_to_remove: vector<address>, ctx: &mut TxContext){
+
+
+    //removes one or more users
+    //at least one user shall remain for recovery. Inputs trying to remove all users will be refused
+    public fun remove_users(
+        self: &mut RbacWallet, 
+        users_to_remove: vector<address>, 
+        ctx: &mut TxContext
+        ){
 
         assert!(self.active_recovery.is_none(), errors::active_recovery!());
         
         let sender = ctx.sender();
-        assert!(self.accounts.contains(sender), errors::no_member_found!());
+        assert!(self.users.contains(sender), errors::no_user_found!());
 
         //admin cannot remove himself
         assert!(sender == self.current_admin, errors::not_authorized!());
-        assert!(!accounts_to_remove.contains(&sender), errors::cant_remove_admin!());
+        assert!(!users_to_remove.contains(&sender), errors::cant_remove_admin!());
 
-        //at least 1 account (+ admin) shall remain
-        let remove_len = accounts_to_remove.length();
-        let current_len = self.accounts.length();
-        assert!(current_len >= (remove_len + 2), errors::cant_remove_all_accounts!()); //+2 because we prevent the user from removing all recovery accounts (1 recovery account, the admin must remain)
+        //at least 1 account (+ admin) shall remain, thats the treshold
+        let remove_len = users_to_remove.length();
+        let current_len = self.users.length();
+        assert!(current_len >= (remove_len + 2), errors::cant_remove_all_users!()); //+2 because we prevent the user from removing all recovery accounts (1 recovery account + the admin must remain)
 
         let mut i = 0;
         let mut removed = vector::empty<address>(); 
         while(i < remove_len){
-            let addr = *accounts_to_remove.borrow(i);
-            if(self.accounts.contains(addr)){
-                table::remove(&mut self.accounts, addr);
+            let addr = *users_to_remove.borrow(i);
+            if(self.users.contains(addr)){
+                table::remove(&mut self.users, addr);
                 removed.push_back(addr);
             };
             i = i + 1;
@@ -373,22 +414,30 @@ module rbac_wallet::rbac{
     }
 
 
-    public fun init_recovery(self: &mut RbacWallet, new_admin: address, clock: &Clock, ctx: &mut TxContext){
+
+    //user initializes a recovery if admin loses access to the wallet 
+    public fun init_recovery(
+        self: &mut RbacWallet, 
+        new_admin: address, 
+        clock: &Clock, 
+        ctx: &mut TxContext
+        ){
         
         let sender = ctx.sender();
-        let role_id = *self.accounts.borrow(sender);
+        let role_id = *self.users.borrow(sender);
         assert!(self.active_recovery.is_none(), errors::active_recovery!());
-        assert!(self.accounts.contains(sender), errors::no_member_found!());
+        assert!(self.users.contains(sender), errors::no_user_found!());
         assert!(sender != self.current_admin, errors::admin_cannot_recover!());
-        assert!(self.accounts.contains(new_admin), errors::no_member_found!());
+        assert!(self.users.contains(new_admin), errors::no_user_found!());
 
         let role_config = self.roles_config.get(&role_id);
         let role_recovery_time = role_config.recovery_time_ms;
         let current_clock = clock.timestamp_ms();
 
+        //gets the time of finalization. Current time + the users role recovery time
         let finalization_time = current_clock + role_recovery_time;
 
-
+        
         let recovery_request = RecoveryRequest {
             new_admin,
             finalization_time_ms: finalization_time
@@ -401,23 +450,33 @@ module rbac_wallet::rbac{
     }
 
 
-    public fun finalize_recovery(self: &mut RbacWallet, clock: &Clock, ctx: &mut TxContext){
+
+    //finalizes the recovery
+    //can be called by any user, will succed if current time >= finalization time 
+    public fun finalize_recovery(
+        self: &mut RbacWallet, 
+        clock: &Clock, 
+        ctx: &mut TxContext
+        ){
 
         let sender = ctx.sender();
-        assert!(self.accounts.contains(sender), errors::no_member_found!());
+        assert!(self.users.contains(sender), errors::no_user_found!());
         assert!(sender != self.current_admin, errors::admin_cannot_recover!());
         assert!(self.active_recovery.is_some(), errors::no_active_recovery!());
+        
         
         let current_clock = clock.timestamp_ms();
         let recovery_request = self.active_recovery.extract();      //extract() already set active_recovery field to none
         let finalization_time = recovery_request.finalization_time_ms;
         assert!(current_clock >= finalization_time, errors::recovery_not_ready!());
+        assert!(self.users.contains(recovery_request.new_admin), no_user_found!());
 
-        self.accounts.remove(self.current_admin);
 
-        self.accounts.remove(recovery_request.new_admin);
+        self.users.remove(self.current_admin);
 
-        self.accounts.add(recovery_request.new_admin, constants::get_admin_role_id());
+        self.users.remove(recovery_request.new_admin);
+
+        self.users.add(recovery_request.new_admin, constants::get_admin_role_id()); //re adds user with admin role id
 
         self.current_admin = recovery_request.new_admin;
 
@@ -425,7 +484,14 @@ module rbac_wallet::rbac{
         events::recovery_finalized(wallet_id, sender, recovery_request.new_admin);
     }
 
-    public fun cancel_recovery(self: &mut RbacWallet, ctx: &mut TxContext){
+
+
+    //cancels recovery if admin wants to
+    //prob admin becomes a single point of failure if admin keys are stolen, I should add double admin or smth like that
+    public fun cancel_recovery(
+        self: &mut RbacWallet, 
+        ctx: &mut TxContext
+        ){
 
 
         let sender = ctx.sender();
@@ -437,26 +503,34 @@ module rbac_wallet::rbac{
 
     }
 
-    public fun update_accounts_role(self: &mut RbacWallet, accounts: vector<address> , new_roles: vector<u8>, ctx: &mut TxContext){
+
+
+    //changes one or more users role to another existant in the config
+    public fun update_users_role(
+        self: &mut RbacWallet, 
+        users: vector<address>, 
+        new_roles: vector<u8>, 
+        ctx: &mut TxContext
+        ){
 
         let sender = ctx.sender();
-        assert!(sender == self.current_admin, errors::admin_cannot_recover!());
+        assert!(sender == self.current_admin, errors::not_authorized!());
 
-        let accounts_len = accounts.length();
-        assert!(accounts_len == new_roles.length(), errors::recovery_accs_roles_not_matching!());
+        let users_len = users.length();
+        assert!(users_len == new_roles.length(), errors::users_roles_not_matching!());
 
         let mut i = 0;
         let mut updated = vector::empty<address>(); 
-        while (i < accounts_len){
-            let addr = *accounts.borrow(i);
+        while (i < users_len){
+            let addr = *users.borrow(i);
             let new_role = *new_roles.borrow(i);
-            assert!(addr != self.current_admin, errors::cant_change_admin_role!());
-            assert!(new_role != constants::get_admin_role_id(), errors::invalid_user_level!());
-            assert!(self.accounts.contains(addr), errors::no_member_found!());
+            assert!(addr != self.current_admin, errors::cant_change_admin_role!()); //admin role cant be changed by anyone!
+            assert!(new_role != constants::get_admin_role_id(), errors::invalid_user_level!()); //new level must be in the config table
+            assert!(self.users.contains(addr), errors::no_user_found!());
             assert!(self.roles_config.contains(&new_role));
 
             updated.push_back(addr);
-            let current_role = table::borrow_mut(&mut self.accounts, addr);
+            let current_role = table::borrow_mut(&mut self.users, addr);
 
             *current_role = new_role;
 
@@ -469,7 +543,18 @@ module rbac_wallet::rbac{
 
     }
 
-    public fun add_roles(self: &mut RbacWallet, new_roles: vector<u8>, new_sign_abilities: vector<bool>, new_recovery_times: vector<u64>, new_spending_limits: vector<u64>, ctx: &mut TxContext){
+
+
+    //adds new roles to the roles config structure
+    //adding a new role means adding a role id associated with a sign ability, max spending and recovery time
+    public fun add_roles(
+        self: &mut RbacWallet, 
+        new_roles: vector<u8>, 
+        new_sign_abilities: vector<bool>, 
+        new_recovery_times: vector<u64>, 
+        new_spending_limits: vector<u64>, 
+        ctx: &mut TxContext
+        ){
         
         let sender = ctx.sender();
         assert!(sender == self.current_admin, errors::not_authorized!());
@@ -477,6 +562,8 @@ module rbac_wallet::rbac{
         assert!(new_roles_len == new_recovery_times.length(), errors::new_roles_lengths_not_matching!());
         assert!(new_roles_len == new_spending_limits.length(), errors::new_roles_lengths_not_matching!());
         assert!(new_roles_len == new_sign_abilities.length(), errors::new_roles_lengths_not_matching!());
+
+        //TODO: role cant have the same charateristichs of admin role + there should be min limits on fields like recovery time at least 1 hour, same for spending limit
 
         let mut i = 0;
         let mut added = vector::empty<u8>(); 
@@ -504,9 +591,21 @@ module rbac_wallet::rbac{
     }
 
 
-    //to deposit just ika or suis just pass a zero coin
-    public fun deposit(self: &mut RbacWallet, ika_coin: Coin<IKA>, sui_coin: Coin<SUI>, ctx: &mut TxContext){
 
+    //deposits ikas and suis inside wallet balance
+    //to deposit just ika or sui just pass a zero coin
+    public fun deposit(
+        self: &mut RbacWallet, 
+        ika_coin: Coin<IKA>, 
+        sui_coin: Coin<SUI>, 
+        ctx: &mut TxContext
+        ){
+
+        //TODO: add a min amount to add to avoid spams
+        
+        let sender = ctx.sender();
+        assert!(self.users.contains(sender), errors::no_user_found!());
+        
         let ika_amount = ika_coin.value();
         let sui_amount = sui_coin.value();
         
@@ -520,18 +619,32 @@ module rbac_wallet::rbac{
         events::coins_deposited(wallet_id, sender, ika_amount, sui_amount);
 
     }
+
+
+
+    //signs arbitrary bytes via IKA mpc
     //idea: passing chain-name (seems stupid)
-    public fun sign_messagge(self: &mut RbacWallet, coordinator: &mut DWalletCoordinator, message: vector<u8>, message_centralized_signature: vector<u8>, curve_id: u32, signature_algorithm_id: u32, hash_scheme: u32, ctx: &mut TxContext): ID {
+    //be careful with hash scheme, must match curve and sig alg used by the chain (we used them to generate user partial signature)
+    public fun sign_messagge(
+        self: &mut RbacWallet, 
+        coordinator: &mut DWalletCoordinator, 
+        message: vector<u8>, //transaction bytes to be signed
+        message_centralized_signature: vector<u8>, //user's partial signature
+        curve_id: u32, 
+        signature_algorithm_id: u32, 
+        hash_scheme: u32, 
+        ctx: &mut TxContext
+        ): ID {
 
         let sender = ctx.sender();
-        assert!(self.accounts.contains(sender), errors::no_member_found!());
+        assert!(self.users.contains(sender), errors::no_user_found!());
 
-        let role_id = *self.accounts.borrow(sender);
+        let role_id = *self.users.borrow(sender);
         let role_config = self.roles_config.get(&role_id);
         assert!(role_config.sign_ability, errors::not_authorized!());
 
-        //spending limit control to add
-        //check bytes to sign through a backend oracle (to add) 
+        //TODO: spending limit control to add
+        //TODO: check bytes to sign through a backend oracle (to add) 
 
         let (mut ika, mut sui) = self.withdraw_payment_coins(ctx);
         
@@ -542,9 +655,9 @@ module rbac_wallet::rbac{
         let pair_id = constants::get_pair_id(curve_id, signature_algorithm_id);
         let presignatures = table::borrow_mut(&mut self.presignatures, pair_id);
 
+        assert!(presignatures.length() > 0, errors::no_presignature_found!());
         let unverified_presign = presignatures.swap_remove(0);
-        let verified_presign = coordinator.verify_presign_cap(unverified_presign, ctx);
-
+        let verified_presign = coordinator.verify_presign_cap(unverified_presign, ctx); //verify presignature capability in order to sign
 
 
         let approval = coordinator.approve_message(
@@ -554,10 +667,7 @@ module rbac_wallet::rbac{
         message,
         );
 
-        let session = coordinator.register_session_identifier(
-        ctx.fresh_object_address().to_bytes(),
-        ctx,
-        );
+        let session = random_session_identifier(coordinator, ctx);
 
         let sign_id = coordinator.request_sign_and_return_id(
             verified_presign,
@@ -569,26 +679,54 @@ module rbac_wallet::rbac{
             ctx,
         );
 
-        //replenish presign pool if num of presignatures is below limit after signing (to add)
         
         self.return_payment_coins(ika, sui);
         
         events::message_signed(sign_id);
-        sign_id
+        sign_id     //returns the sign ID to recover the raw signature via backend to broadcast
 
     }
 
 
-    //helpers
-    fun withdraw_payment_coins(self: &mut RbacWallet, ctx: &mut TxContext): (Coin<IKA>, Coin<SUI>) {
+
+
+    //=== helper functions ===
+
+
+    //gets all the sui and ika balance of the wallet, wraps both of them each into a coin and returns those coins
+    fun withdraw_payment_coins(
+        self: &mut RbacWallet, 
+        ctx: &mut TxContext
+        ): (Coin<IKA>, Coin<SUI>) {
+
         let payment_ika = self.ikas.withdraw_all().into_coin(ctx);
         let payment_sui = self.suis.withdraw_all().into_coin(ctx);
         (payment_ika, payment_sui)
+
     }
 
-    fun return_payment_coins(self: &mut RbacWallet, payment_ika: Coin<IKA>, payment_sui: Coin<SUI>) {
+    //returns the coins to the wallet balnce
+    fun return_payment_coins(
+        self: &mut RbacWallet, 
+        payment_ika: Coin<IKA>, 
+        payment_sui: Coin<SUI>
+        ) {
+
         self.ikas.join(payment_ika.into_balance());
         self.suis.join(payment_sui.into_balance());
+    
+    }
+
+    fun random_session_identifier(
+        coordinator: &mut DWalletCoordinator, 
+        ctx: &mut TxContext
+        ): SessionIdentifier {
+
+        coordinator.register_session_identifier(
+            ctx.fresh_object_address().to_bytes(),
+            ctx,
+        )
+         
     }
 
 }

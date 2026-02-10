@@ -13,7 +13,7 @@ public struct WalletCreated has copy, drop {
 
     admin: address,
 
-    initial_accounts: vector<address>,
+    initial_users: vector<address>,
 
     created_by: address
 
@@ -125,13 +125,13 @@ public struct MessageSigned has copy, drop {
 public(package) fun wallet_created(
     wallet_id: ID,
     admin: address,
-    initial_accounts: vector<address>,
+    initial_users: vector<address>,
     created_by: address
 ) {
   event::emit(WalletCreated {
     wallet_id,
     admin,
-    initial_accounts,
+    initial_users,
     created_by
   });
 }
