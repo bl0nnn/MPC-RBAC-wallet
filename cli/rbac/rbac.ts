@@ -36,7 +36,7 @@ export async function createRbacWallet(
     const {suiClient, ikaClient} = await getClients();
     const {signerKeypair, signerAddress} = getSignerKeyPair();
 
-    const curve = Curve.SECP256K1;
+    const curve = CHAIN_CONFIG[chain].curve;
 
     const seedKey = seedGenrator(ENV.HKDF_KEY_HEX, chain);
 
@@ -129,6 +129,7 @@ export async function addPresignature(chain: string){
     const {signerKeypair, signerAddress} = getSignerKeyPair();
 
     const transaction = new Transaction();
+    transaction.setGasBudget(100000000);
 
     const curve_id =  get_curve_id(CHAIN_CONFIG[chain].curve);
     const signature_algorithm_id = get_signature_algorithm_id(CHAIN_CONFIG[chain]);
@@ -558,6 +559,7 @@ export async function signMessage(chain: string, amount: number, recipient: stri
     let messageBytes: Uint8Array<ArrayBuffer>;
     let dWallet: DWalletWithState<"Active">; 
     let presign: any;
+    let algoTx: Uint8Array<ArrayBuffer> | undefined;
 
     const curve_id = get_curve_id(CHAIN_CONFIG[chain].curve);
     const signature_algorithm_id = get_signature_algorithm_id(CHAIN_CONFIG[chain]);
@@ -573,16 +575,15 @@ export async function signMessage(chain: string, amount: number, recipient: stri
         messageBytes = signignData[0] as Uint8Array<ArrayBuffer>;
         dWallet = signignData[1] as DWalletWithState<"Active">;
         presign = signignData[2];
-        console.log(presign)
+        algoTx = signignData[3];
     }else{
         throw new Error('Chain not yet supported!')
     }
 
     
 
-    const ikaParams = new Uint8Array(Array.from(await ikaClient.getProtocolPublicParameters()));
+    const ikaParams = new Uint8Array(Array.from(await ikaClient.getProtocolPublicParameters(dWallet)));
 
-        
     const messageCentralizedSignature = await createUserSignMessageWithPublicOutput(
         ikaParams,
         new Uint8Array(dWallet.state.Active.public_output),
@@ -591,7 +592,7 @@ export async function signMessage(chain: string, amount: number, recipient: stri
         messageBytes,
         CHAIN_CONFIG[chain].hash_scheme,
         CHAIN_CONFIG[chain].signature_algorithm,
-        CHAIN_CONFIG[chain].curve,
+        CHAIN_CONFIG[chain].curve
     );
     
     const tx = new Transaction();
@@ -633,7 +634,12 @@ export async function signMessage(chain: string, amount: number, recipient: stri
     if(chain == "ethereum-base-sepolia"){
         sendTxToEthereumBaseSepolia(sign_id, dWallet, String(amount), recipient);
     }else if(chain == "algorand-testnet"){
-        sendTxToAlgorandTestnet(sign_id, messageBytes);
+
+        if(!algoTx) {
+            throw new Error("algoTx not initialized");
+        }
+
+        sendTxToAlgorandTestnet(sign_id, algoTx);
     }else{
         throw new Error('still to implement')
     }

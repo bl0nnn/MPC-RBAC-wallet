@@ -4,12 +4,10 @@ import {
   publicKeyFromDWalletOutput, 
   type DWalletWithState} from '@ika.xyz/sdk';
 import type { SuiObjectResponse } from '@mysten/sui/client';
-import { bytesToHex } from "@noble/hashes/utils.js";
 import algosdk from 'algosdk';
 
 import { getSuiClient, getIkaClient, getAlgorandClient} from '../config/clients.ts'
 import { ENV } from '../config/env.ts';
-
 
 const suiClient = await getSuiClient();
 const ikaClient = await getIkaClient();
@@ -33,7 +31,6 @@ export async function prepareAlgorandSigning(algoAmount: number, algorandRecipie
     const algorandAddr = new algosdk.Address(dWalletPubKey).toString();
     console.log(algorandAddr)
 
-
     const txParams = await algoClient.getSuggestedParams();
     
     const algorandTx = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
@@ -45,14 +42,16 @@ export async function prepareAlgorandSigning(algoAmount: number, algorandRecipie
 
     const messageBytes = algorandTx.bytesToSign();
 
-    return [messageBytes, dWallet, presign]
+    const txBytes = algorandTx.toByte();
+
+    return [messageBytes, dWallet, presign, txBytes]
 
 }
 
 
-export async function sendTxToAlgorandTestnet(sign_id: string, messageBytes: Uint8Array<ArrayBuffer>){
+export async function sendTxToAlgorandTestnet(sign_id: string, algoTx: Uint8Array<ArrayBuffer>){
 
-    const txnPlainObject = algosdk.decodeObj(messageBytes);
+    const txnPlainObject = algosdk.decodeObj(algoTx);
 
     const signature = await ikaClient.getSignInParticularState(
             sign_id,
@@ -74,8 +73,7 @@ export async function sendTxToAlgorandTestnet(sign_id: string, messageBytes: Uin
         const { txid } = await algod.sendRawTransaction(rawSignedTxn).do();
 
         await algosdk.waitForConfirmation(algod, txid, 4);
-        console.log('Transazione confermata!')
-        return {txid}
+        console.log(`Transazione confermata con transaction id: ${txid} `)
 
     } catch (e: any) {
 
@@ -101,16 +99,19 @@ export async function sendTxToAlgorandTestnet(sign_id: string, messageBytes: Uin
 
 async function getDwalletInActiveState(rbacwallet: SuiObjectResponse){
     
+    
     const dWallets = rbacwallet.data?.content?.fields.dWallets.fields.id.id ?? [];
 
     const dWalletsList = await suiClient.getDynamicFields({
         parentId: dWallets,
     });
 
+
     let dwalletCapID;
     for (const item of dWalletsList.data) {
         
         const curve = item.name.value
+
         const tableValue = await suiClient.getDynamicFieldObject({
             parentId: dWallets,
             name: {
@@ -120,6 +121,7 @@ async function getDwalletInActiveState(rbacwallet: SuiObjectResponse){
         });
 
         if (curve == "ed25519"){
+
            dwalletCapID = tableValue.data?.content?.fields.value.fields.dwallet_id;
            break
         }
@@ -164,7 +166,6 @@ async function getPresignCompleted(rbacwallet: SuiObjectResponse){
             const presignList = tableValue.data?.content?.fields.value;
 
             presignID = presignList[0].fields.presign_id
-            console.log(presignID)
             const completedPresign = await ikaClient.getPresignInParticularState(
                 presignID,
                 'Completed',

@@ -103,12 +103,16 @@ module rbac_wallet::rbac{
         ctx: &mut TxContext
         ){
 
+        let wallet_creator = ctx.sender();
+
         //always make sure each array passed as config has the same length cause we the i-th element of each to fill one user config
         let roles_len = role_ids.length();
         assert!(roles_len >= 1, errors::empty_roles_vector!());
         assert!(input_sign_abilities.length() == roles_len, errors::config_vectors_lenghts_not_matching!());
         assert!(input_spending_limits.length() == roles_len, errors::config_vectors_lenghts_not_matching!());        
         assert!(input_recovery_times.length() == roles_len, errors::config_vectors_lenghts_not_matching!());
+
+        assert!(!input_users.contains(&wallet_creator), errors::double_adding_admin!());
 
         let input_users_len = input_users.length();
         assert!(input_users_len >= 1, errors::no_user_at_creationl!()); //there should be at least one user at creation (an rbac cant be just the admin)
@@ -125,7 +129,7 @@ module rbac_wallet::rbac{
         vec_map::insert(&mut roles_config, constants::get_admin_role_id(), admin_config);
 
 
-        let wallet_creator = ctx.sender();
+        
         let wallet_uid = object::new(ctx);
         let wallet_id = wallet_uid.to_inner();
 
@@ -242,7 +246,7 @@ module rbac_wallet::rbac{
         assert!(pool.length() < constants::get_max_presignatures_number(), errors::presignatures_pool_full!());
 
 
-        let session_identifier = random_session_identifier(coordinator, ctx);
+        let session_identifier = create_session_identifier(coordinator, ctx);
 
         //Returns an unverifed presign cap (must be verified before signing)
         let presignature = coordinator.request_global_presign(
@@ -296,10 +300,7 @@ module rbac_wallet::rbac{
 
         let (mut ika_coin, mut sui_coin) = self.withdraw_payment_coins(ctx);
 
-        let session_identifier = coordinator.register_session_identifier(
-        prepareDKG_session_identifier,
-        ctx,
-        );
+        let session_identifier = create_session_identifier(coordinator, ctx);
 
         let (dwallet_capability, _) = coordinator.request_dwallet_dkg_with_public_user_secret_key_share(
             dwallet_network_encryption_key_id,
@@ -500,6 +501,9 @@ module rbac_wallet::rbac{
 
         let _ = self.active_recovery.extract();
 
+        let wallet_id = self.id.to_inner();
+        events::recovery_canceled(wallet_id, sender);
+
 
     }
 
@@ -667,7 +671,7 @@ module rbac_wallet::rbac{
         message,
         );
 
-        let session = random_session_identifier(coordinator, ctx);
+        let session = create_session_identifier(coordinator, ctx);
 
         let sign_id = coordinator.request_sign_and_return_id(
             verified_presign,
@@ -717,16 +721,13 @@ module rbac_wallet::rbac{
     
     }
 
-    fun random_session_identifier(
-        coordinator: &mut DWalletCoordinator, 
-        ctx: &mut TxContext
-        ): SessionIdentifier {
-
+    fun create_session_identifier(
+        coordinator: &mut DWalletCoordinator,
+        ctx: &mut TxContext,
+    ): SessionIdentifier {
         coordinator.register_session_identifier(
             ctx.fresh_object_address().to_bytes(),
             ctx,
         )
-         
     }
-
 }

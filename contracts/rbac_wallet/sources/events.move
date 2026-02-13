@@ -104,6 +104,14 @@ public struct RolesAdded has copy, drop {
 
 }
 
+public struct RecoveryCanceled has copy, drop {
+
+  wallet_id: ID,
+
+  canceled_by: address,
+
+}
+
 public struct DepositedCoins has copy, drop {
 
   wallet_id: ID,
@@ -245,6 +253,16 @@ public(package) fun roles_added(
     wallet_id,
     added_by,
     roles_added
+  });
+}
+
+public(package) fun recovery_canceled(
+  wallet_id: ID,
+  canceled_by: address
+) {
+  event::emit(RecoveryCanceled {
+    wallet_id,
+    canceled_by
   });
 }
 

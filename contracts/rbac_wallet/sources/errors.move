@@ -90,3 +90,7 @@ public(package) macro fun role_doesnt_exist(): u64 {
 public(package) macro fun no_presignature_found(): u64 {
     20
 }
+
+public(package) macro fun double_adding_admin(): u64 {
+    21
+}
