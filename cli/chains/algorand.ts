@@ -73,11 +73,7 @@ export async function sendTxToAlgorandTestnet(sign_id: string, algoTx: Uint8Arra
         const { txid } = await algod.sendRawTransaction(rawSignedTxn).do();
 
         await algosdk.waitForConfirmation(algod, txid, 4);
-<<<<<<< HEAD
-        console.log(`Transazione confermata con transaction id: ${txid} `)
-=======
         console.log(`Confirmed transaction with id: ${txid} `)
->>>>>>> f8ca49f (cli refining)
 
     } catch (e: any) {
 
