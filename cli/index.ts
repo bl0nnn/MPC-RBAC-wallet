@@ -15,11 +15,6 @@ import {
   deposit,
   signMessage,
 } from "./rbac/rbac.ts";
-<<<<<<< HEAD
-
-const rl = readline.createInterface({ input, output });
-
-=======
 import { bcs } from "@mysten/sui/bcs";
 import { fromBase64, isValidSuiAddress } from "@mysten/sui/utils";
 import { getSuiClient } from "./config/clients.ts";
@@ -117,7 +112,6 @@ async function getCurrentUsers(currentUsersId: string){
   return userAddrs
 }
 
->>>>>>> f8ca49f (cli refining)
 async function ask(q: string): Promise<string> {
   return (await rl.question(q)).trim();
 }
@@ -170,11 +164,6 @@ async function main() {
       switch (choice) {
         case "1": {
           const chain = await askChain();
-<<<<<<< HEAD
-          const role_ids = parseNumberArray(await ask("role_ids: "));
-          const sign = parseBoolArray(await ask("roles_sign_ability: "));
-          const spending = parseNumberArray(await ask("spending_limit: "));
-=======
 
           let role_ids: number[] = [];
           while(true){
@@ -225,15 +214,10 @@ async function main() {
             }
           }
 
->>>>>>> f8ca49f (cli refining)
           const recovery = parseNumberArray(await ask("recovery_time: "));
           const users = parseStringArray(await ask("new_users: "));
           const roles = parseNumberArray(await ask("new_users_roles: "));
 
-<<<<<<< HEAD
-
-=======
->>>>>>> f8ca49f (cli refining)
           await createRbacWallet(
             chain,
             role_ids,
@@ -243,15 +227,10 @@ async function main() {
             users,
             roles
           );
-<<<<<<< HEAD
-          break;
-        }
-=======
 
           break;
         }
         
->>>>>>> f8ca49f (cli refining)
 
         case "2": {
           const chain = await askChain();
@@ -266,10 +245,6 @@ async function main() {
         }
 
         case "4": {
-<<<<<<< HEAD
-          const users = parseStringArray(await ask("Users: "));
-          const roles = parseNumberArray(await ask("Roles: "));
-=======
           const currentUsersId = (await getWallet()).users.id;
           const currentRolesId = (await getWallet()).roles_config;
           
@@ -316,15 +291,11 @@ async function main() {
             }
           }
 
->>>>>>> f8ca49f (cli refining)
           await addUsers(users, roles);
           break;
         }
 
         case "5": {
-<<<<<<< HEAD
-          const users = parseStringArray(await ask("Users to remove: "));
-=======
           const currentUsersId = (await getWallet()).users.id;
           const currentUsers = await getCurrentUsers(currentUsersId);
 
@@ -348,30 +319,11 @@ async function main() {
               break
             }
           } 
->>>>>>> f8ca49f (cli refining)
           await removeUsers(users);
           break;
         }
 
         case "6": {         //in questo momento la init recovery la inzia sempre 0x3cb64fc943a8af6915d682a552a90a6332f27f1fa1962603816edd8a13a101e0 in .env
-<<<<<<< HEAD
-          const admin = await ask("New admin address: ");
-          await initRecovery(admin);
-          break;
-        }
-
-        case "7":
-          await finalizeRecovery();
-          break;
-
-        case "8":
-          await cancelRecovery();
-          break;
-
-        case "9": {
-          const users = parseStringArray(await ask("Users: "));
-          const roles = parseNumberArray(await ask("New roles: "));
-=======
 
           const activeRecovery = (await getWallet()).active_recovery;
 
@@ -479,19 +431,11 @@ async function main() {
             }
           }
 
->>>>>>> f8ca49f (cli refining)
           await updateUsersRole(users, roles);
           break;
         }
 
         case "10": {
-<<<<<<< HEAD
-          const roles = parseNumberArray(await ask("Role ids: "));
-          const sign = parseBoolArray(await ask("Sign abilities: "));
-          const recovery = parseNumberArray(await ask("Recovery times: "));
-          const spending = parseNumberArray(await ask("Spending limits: "));
-
-=======
 
 
           const currentRolesId = (await getWallet()).roles_config;
@@ -584,7 +528,6 @@ async function main() {
           }
 
           console.log(roles, sign, recovery, spending)
->>>>>>> f8ca49f (cli refining)
           await addRoles(roles, sign, recovery, spending);
           break;
         }
@@ -618,8 +561,5 @@ async function main() {
   }
 }
 
-<<<<<<< HEAD
-=======
 
->>>>>>> f8ca49f (cli refining)
 main();
