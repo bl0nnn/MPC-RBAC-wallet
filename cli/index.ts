@@ -166,42 +166,47 @@ async function main() {
           const chain = await askChain();
 
           let role_ids: number[] = [];
-          while(true){
-            role_ids = parseNumberArray(await ask("role_ids (comma separated, no space): "));
-            
+          while (true) {
+            role_ids = parseNumberArray(
+            await ask("role_ids (comma separated, no space): ")
+            );
+
             let flag = 0;
 
-            for(let i = 0; i < role_ids.length; i++){
-
-              if(role_ids[i] <= 0 || isNaN(role_ids[i])){
-                flag = 1;
-                break
+            for (let i = 0; i < role_ids.length; i++) {
+              if (role_ids[i] <= 0 || isNaN(role_ids[i])) {
+              flag = 1;
+              break;
               }
 
-              for(let j = i+1; j < role_ids.length; j++){
-                if(role_ids[i] == role_ids[j]){
-                  flag = 1;
-                  break
+              for (let j = i + 1; j < role_ids.length; j++) {
+                if (role_ids[i] === role_ids[j]) {
+                flag = 1;
+                break;
                 }
               }
 
               if (flag === 1) break;
-              
             }
 
-            if (flag === 1){
-              console.log("Role IDs must be numbers > 0 and not duplicated. Try again.")
-              continue
-            }else{
-              break
+            if (flag === 1) {
+              console.log(
+              "Role IDs must be numbers > 0 and not duplicated. Try again."
+              );
+              continue;
+            } else {
+              break;
             }
           }
 
           const sign: boolean[] = [];
           const spending: number[] = [];
+          const recovery: number[] = [];
 
           for (let i = 0; i < role_ids.length; i++) {
-            const canSign = (await ask(`Role ${role_ids[i]} sign ability (true/false): `)).toLowerCase() === "true";
+            console.log(`\n--- Configuring Role ${role_ids[i]} ---`);
+
+            const canSign =(await ask(`Role ${role_ids[i]} sign ability (true/false): `)).toLowerCase() === "true";
 
             sign.push(canSign);
 
@@ -212,9 +217,14 @@ async function main() {
               spending.push(0);
               console.log(`Role ${role_ids[i]} cannot sign: spending limit set to 0`);
             }
+
+            const recoveryTime = Number(
+            await ask(`Role ${role_ids[i]} recovery time: `)
+            );
+
+            recovery.push(recoveryTime);
           }
 
-          const recovery = parseNumberArray(await ask("recovery_time: "));
           const users = parseStringArray(await ask("new_users: "));
           const roles = parseNumberArray(await ask("new_users_roles: "));
 
@@ -231,7 +241,6 @@ async function main() {
           break;
         }
         
-
         case "2": {
           const chain = await askChain();
           await addPresignature(chain);
