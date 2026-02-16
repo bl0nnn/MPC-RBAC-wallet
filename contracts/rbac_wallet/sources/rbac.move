@@ -300,7 +300,10 @@ module rbac_wallet::rbac{
 
         let (mut ika_coin, mut sui_coin) = self.withdraw_payment_coins(ctx);
 
-        let session_identifier = create_session_identifier(coordinator, ctx);
+        let session_identifier = coordinator.register_session_identifier(
+        prepareDKG_session_identifier,
+        ctx,
+        );
 
         let (dwallet_capability, _) = coordinator.request_dwallet_dkg_with_public_user_secret_key_share(
             dwallet_network_encryption_key_id,
