@@ -527,7 +527,6 @@ async function main() {
 
           }
 
-          console.log(roles, sign, recovery, spending)
           await addRoles(roles, sign, recovery, spending);
           break;
         }
