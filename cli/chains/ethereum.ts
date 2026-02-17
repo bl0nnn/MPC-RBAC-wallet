@@ -35,6 +35,7 @@ export async function prepareEthSigning(ethAmount: string, ethRecipientAddr: str
 
     const dWalletPubKey = await getDwalletPubKey(dWallet, Curve.SECP256K1);
     const ethereumAddr = deriveEthereumAddress(dWalletPubKey);
+    console.log(ethereumAddr);
 
     const txParams = await getTxParams(ethereumAddr, ethClient as PublicClient);
     
