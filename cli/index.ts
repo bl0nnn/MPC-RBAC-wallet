@@ -482,7 +482,7 @@ async function main() {
 
           for (const role of roles) {
 
-            console.log(`\nConfiguring role ${role}`);
+            console.log(`\n--- Configuring Role ${role} ---`);
             let canSign: boolean;
             while (true) {
               const input = (await ask("Sign ability (true/false): ")).toLowerCase();
