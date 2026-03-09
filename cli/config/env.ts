@@ -30,6 +30,10 @@ if (!process.env.ALG_RECIPIENT_ADDR){
     throw new Error("no TEST_RECOVERY_ACC in .env file")
 }
 
+if (!process.env.FALLBACK_ADDR){
+    throw new Error("no TEST_RECOVERY_ACC in .env file")
+}
+
 export const ENV = {
     SIGNER_KEY: process.env.SIGNER_KEY,
     PACKAGE_ADDRESS: process.env.PACKAGE_ADDRESS,
@@ -37,6 +41,7 @@ export const ENV = {
     HKDF_KEY_HEX: process.env.HKDF_KEY,
     ETH_RECIPIENT_ADDR: process.env.ETH_RECIPIENT_ADDR,
     TEST_RECOVERY_ACC: process.env.TEST_RECOVERY_ACC,
-    ALG_RECIPIENT_ADDR: process.env.ALG_RECIPIENT_ADDR
+    ALG_RECIPIENT_ADDR: process.env.ALG_RECIPIENT_ADDR,
+    FALLBACK_ADDR: process.env.FALLBACK_ADDR
 };
 

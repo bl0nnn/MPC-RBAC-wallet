@@ -561,6 +561,7 @@ export async function signMessage(chain: string, amount: number, recipient: stri
     let dWallet: DWalletWithState<"Active">; 
     let presign: any;
     let algoTx: Uint8Array<ArrayBuffer> | undefined;
+    let ikaAddr: string = "";
 
     const curve_id = get_curve_id(CHAIN_CONFIG[chain].curve);
     const signature_algorithm_id = get_signature_algorithm_id(CHAIN_CONFIG[chain]);
@@ -576,7 +577,8 @@ export async function signMessage(chain: string, amount: number, recipient: stri
         messageBytes = signignData[0] as Uint8Array<ArrayBuffer>;
         dWallet = signignData[1] as DWalletWithState<"Active">;
         presign = signignData[2];
-        algoTx = signignData[3];
+        algoTx = signignData[3] as Uint8Array<ArrayBuffer>;
+        ikaAddr = signignData[4] as string;
     }else{
         throw new Error('Chain not yet supported!')
     }
@@ -640,10 +642,48 @@ export async function signMessage(chain: string, amount: number, recipient: stri
             throw new Error("algoTx not initialized");
         }
 
-        sendTxToAlgorandTestnet(sign_id, algoTx);
+        await sendTxToAlgorandTestnet(sign_id, algoTx, ikaAddr);
     }else{
         throw new Error('still to implement')
     }
+}
+
+
+export async function emergency_fallback(new_state: boolean){
+
+    const {suiClient} = await getClients();
+    const {signerKeypair} = getSignerKeyPair();
+
+    const tx = new Transaction();
+     
+    tx.moveCall({
+        package: ENV.PACKAGE_ADDRESS,
+    
+        module: 'rbac',
+        
+        function: 'set_fallback_state',
+    
+        arguments: [
+            tx.object(ENV.WALLET_ADDRESS),
+            tx.pure.bool(new_state)
+        ],
+    });
+     
+    const result = await suiClient.signAndExecuteTransaction({
+        transaction: tx,
+        signer: signerKeypair,
+        options: {
+            showEvents: true,
+        }
+    });
+     
+    await suiClient.waitForTransaction({
+        digest: result.digest
+    });
+    
+    //TODO ADD EVENT
+
+
 }
 
 //---------- helpers ----------------

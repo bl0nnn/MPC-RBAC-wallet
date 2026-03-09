@@ -14,6 +14,7 @@ import {
   addRoles,
   deposit,
   signMessage,
+  emergency_fallback
 } from "./rbac/rbac.ts";
 import { bcs } from "@mysten/sui/bcs";
 import { fromBase64, isValidSuiAddress } from "@mysten/sui/utils";
@@ -120,9 +121,18 @@ function parseNumberArray(v: string): number[] {
   return v.split(",").map(x => Number(x.trim()));
 }
 
-function parseBoolArray(v: string): boolean[] {
-  return v.split(",").map(x => x.trim().toLowerCase() === "true");
+function parseBoolean(v: string): boolean {
+  while(true){
+    const val = v.trim().toLowerCase();
+
+    if (val === "true") return true;
+    if (val === "false") return false;
+
+    throw new Error(`Invalid boolean: ${v}`);
+
+  }
 }
+
 function parseStringArray(v: string): string[] {
   return v.split(",").map(x => x.trim());
 }
@@ -151,6 +161,7 @@ function menu() {
 10) Add roles
 11) Deposit
 12) Sign message
+13) Emergency fallback
 0) Exit
 `);
 }
@@ -248,8 +259,6 @@ async function main() {
               showContent: true
             }
           });
-
-          console.log(object.data?.content.fields);
 
           const chain = await askChain();
           await addPresignature(chain);
@@ -561,6 +570,14 @@ async function main() {
           const amount = Number(await ask("Amount: "));
           const recipient = await ask("Recipient address: ");
           await signMessage(chain, amount, recipient);
+          break;
+        }
+
+        case "13": {
+          const inputState = await ask("Activate/deactivate fallback? (true/false): ");
+          const new_state = parseBoolean(inputState);
+
+          await emergency_fallback(new_state);
           break;
         }
 
