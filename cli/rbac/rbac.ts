@@ -325,6 +325,7 @@ export async function initRecovery(new_admin: string) {
   const userAddr = userKeypair.toSuiAddress();
 
   const transaction = new Transaction();
+  transaction.setGasBudget(5_000_000);
 
   transaction.moveCall({
     package: ENV.PACKAGE_ADDRESS,
@@ -564,6 +565,7 @@ export async function signMessage(
   let dWallet: DWalletWithState<"Active">;
   let presign: any;
   let algoTx: Uint8Array<ArrayBuffer> | undefined;
+  let ikaAddr: string = "";
 
   const curve_id = get_curve_id(CHAIN_CONFIG[chain].curve);
   const signature_algorithm_id = get_signature_algorithm_id(
@@ -581,7 +583,8 @@ export async function signMessage(
     messageBytes = signignData[0] as Uint8Array<ArrayBuffer>;
     dWallet = signignData[1] as DWalletWithState<"Active">;
     presign = signignData[2];
-    algoTx = signignData[3];
+    algoTx = signignData[3] as Uint8Array<ArrayBuffer>;
+    ikaAddr = signignData[4] as string;
   } else {
     throw new Error("Chain not yet supported!");
   }
@@ -638,9 +641,9 @@ export async function signMessage(
 
   const sign_id = result.events[2].parsedJson.sign_id;
 
-  if (chain == ETHEREUM) {
+  if (chain == "ethereum-base-sepolia") {
     sendTxToEthereumBaseSepolia(sign_id, dWallet, String(amount), recipient);
-  } else if (chain == ALGORAND) {
+  } else if (chain == "algorand-testnet") {
     if (!algoTx) {
       throw new Error("algoTx not initialized");
     }
@@ -649,6 +652,37 @@ export async function signMessage(
   } else {
     throw new Error("still to implement");
   }
+}
+
+export async function emergency_fallback(new_state: boolean) {
+  const { suiClient } = await getClients();
+  const { signerKeypair } = getSignerKeyPair();
+
+  const tx = new Transaction();
+
+  tx.moveCall({
+    package: ENV.PACKAGE_ADDRESS,
+
+    module: "rbac",
+
+    function: "set_fallback_state",
+
+    arguments: [tx.object(ENV.WALLET_ADDRESS), tx.pure.bool(new_state)],
+  });
+
+  const result = await suiClient.signAndExecuteTransaction({
+    transaction: tx,
+    signer: signerKeypair,
+    options: {
+      showEvents: true,
+    },
+  });
+
+  await suiClient.waitForTransaction({
+    digest: result.digest,
+  });
+
+  console.log(result.events);
 }
 
 //---------- helpers ----------------

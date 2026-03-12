@@ -130,6 +130,12 @@ public struct MessageSigned has copy, drop {
 
 }
 
+public struct FallbackStateChanged has copy, drop {
+
+  new_state: bool
+
+}
+
 public(package) fun wallet_created(
     wallet_id: ID,
     admin: address,
@@ -285,5 +291,13 @@ public(package) fun message_signed(
 ) {
   event::emit(MessageSigned {
     sign_id
+  });
+}
+
+public(package) fun fallbackState_changed(
+    new_state: bool
+) {
+  event::emit(FallbackStateChanged {
+    new_state
   });
 }

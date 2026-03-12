@@ -68,6 +68,8 @@ module rbac_wallet::rbac{
         
         suis: Balance<SUI>,
 
+        fallback: bool
+
     }
 
 
@@ -204,7 +206,8 @@ module rbac_wallet::rbac{
             dwallet_network_encryption_key_id,
             presignatures: table::new<u8, vector<UnverifiedPresignCap>>(ctx),
             ikas: ika_coin.into_balance(),
-            suis: sui_coin.into_balance()
+            suis: sui_coin.into_balance(),
+            fallback: false
         };
 
         events::wallet_created(wallet_id,wallet_creator,  initial_users, wallet_creator);   //emit event 
@@ -224,7 +227,7 @@ module rbac_wallet::rbac{
         ctx: &mut TxContext
         ){
 
-        assert!(&self.active_recovery == option::none(), errors::active_recovery!());
+        assert!(self.active_recovery.is_none(), errors::active_recovery!());
         
         let sender = ctx.sender();
 
@@ -288,7 +291,7 @@ module rbac_wallet::rbac{
         ctx: &mut TxContext
         ){
 
-        assert!(&self.active_recovery == option::none(), errors::active_recovery!());
+        assert!(self.active_recovery.is_none(), errors::active_recovery!());
 
         let sender = ctx.sender();
         assert!(self.users.contains(sender), errors::no_user_found!());
@@ -340,7 +343,7 @@ module rbac_wallet::rbac{
         ctx: &mut TxContext
         ){
 
-        assert!(&self.active_recovery == option::none(), errors::active_recovery!());
+        assert!(self.active_recovery .is_none(), errors::active_recovery!());
         
         let sender = ctx.sender();
         assert!(self.users.contains(sender), errors::no_user_found!());
@@ -691,6 +694,21 @@ module rbac_wallet::rbac{
         
         events::message_signed(sign_id);
         sign_id     //returns the sign ID to recover the raw signature via backend to broadcast
+
+    }
+
+    public fun set_fallback_state(self: &mut RbacWallet, new_state: bool, ctx: &mut TxContext){
+
+        let sender = ctx.sender();
+        assert!(self.users.contains(sender), errors::not_authorized!());
+        
+        let role_id = *self.users.borrow(sender);
+        let role_config = self.roles_config.get(&role_id);
+        assert!(role_config.sign_ability, errors::not_authorized!());
+
+        self.fallback = new_state;
+
+        events::fallbackState_changed(new_state);
 
     }
 
