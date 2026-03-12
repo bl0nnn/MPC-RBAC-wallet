@@ -17,12 +17,7 @@ import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui/utils";
 
 import { ENV } from "../config/env.ts";
 import { getSuiClient, getIkaClient } from "../config/clients.ts";
-import {
-  ALGORAND,
-  CHAIN_CONFIG,
-  ETHEREUM,
-  IKA_COIN_TYPE,
-} from "../config/constants.ts";
+import { CHAIN_CONFIG, IKA_COIN_TYPE } from "../config/constants.ts";
 import {
   prepareEthSigning,
   sendTxToEthereumBaseSepolia,
@@ -648,7 +643,7 @@ export async function signMessage(
       throw new Error("algoTx not initialized");
     }
 
-    sendTxToAlgorandTestnet(sign_id, algoTx);
+    await sendTxToAlgorandTestnet(sign_id, algoTx, ikaAddr);
   } else {
     throw new Error("still to implement");
   }
