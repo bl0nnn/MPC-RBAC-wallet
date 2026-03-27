@@ -26,6 +26,7 @@ import {
   prepareAlgorandSigning,
   sendTxToAlgorandTestnet,
 } from "../chains/algorand.ts";
+import { transactionExecutor, getSignerData } from './helpers.ts';
 
 export async function createRbacWallet(
   chain: string,
@@ -36,8 +37,8 @@ export async function createRbacWallet(
   new_users: string[],
   new_users_roles: number[],
 ) {
-  const { suiClient, ikaClient } = await getClients();
-  const { signerKeypair, signerAddress } = getSignerKeyPair();
+  const { ikaClient } = await getClients();
+  const { signerKeypair, signerAddress } = getSignerData(ENV.SIGNER_KEY);
 
   const curve = CHAIN_CONFIG[chain].curve;
 
@@ -117,20 +118,14 @@ export async function createRbacWallet(
     ],
   });
 
-  const tx_result = await suiClient.signAndExecuteTransaction({
-    signer: signerKeypair,
-    transaction: transaction,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(transaction, signerKeypair);
 
-  console.log(tx_result.events);
+  console.log(txResult.events)
 }
 
 export async function addPresignature(chain: string) {
-  const { suiClient, ikaClient } = await getClients();
-  const { signerKeypair, signerAddress } = getSignerKeyPair();
+  
+  const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const transaction = new Transaction();
   transaction.setGasBudget(100000000);
@@ -157,20 +152,15 @@ export async function addPresignature(chain: string) {
     ],
   });
 
-  const tx_result = await suiClient.signAndExecuteTransaction({
-    signer: signerKeypair,
-    transaction: transaction,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(transaction, signerKeypair);
 
-  console.log(tx_result.events);
+  console.log(txResult.events)
 }
 
 export async function addDwallet(chain: string) {
-  const { suiClient, ikaClient } = await getClients();
-  const { signerKeypair, signerAddress } = getSignerKeyPair();
+
+  const { ikaClient } = await getClients();
+  const { signerKeypair, signerAddress } = getSignerData(ENV.SIGNER_KEY);
 
   const curve = CHAIN_CONFIG[chain].curve;
 
@@ -229,24 +219,14 @@ export async function addDwallet(chain: string) {
     ],
   });
 
-  const tx_result = await suiClient.signAndExecuteTransaction({
-    signer: signerKeypair,
-    transaction: transaction,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(transaction, signerKeypair);
 
-  await suiClient.waitForTransaction({
-    digest: tx_result.digest,
-  });
-
-  console.log(tx_result.events);
+  console.log(txResult.events)
 }
 
 export async function addUsers(new_users: string[], new_users_roles: number[]) {
-  const { suiClient, ikaClient } = await getClients();
-  const { signerKeypair, signerAddress } = getSignerKeyPair();
+
+  const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const transaction = new Transaction();
 
@@ -264,24 +244,14 @@ export async function addUsers(new_users: string[], new_users_roles: number[]) {
     ],
   });
 
-  const tx_result = await suiClient.signAndExecuteTransaction({
-    signer: signerKeypair,
-    transaction: transaction,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(transaction, signerKeypair);
 
-  await suiClient.waitForTransaction({
-    digest: tx_result.digest,
-  });
-
-  console.log(tx_result.events);
+  console.log(txResult.events);
 }
 
 export async function removeUsers(users_to_remove: string[]) {
-  const { suiClient, ikaClient } = await getClients();
-  const { signerKeypair, signerAddress } = getSignerKeyPair();
+
+  const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const transaction = new Transaction();
 
@@ -298,26 +268,14 @@ export async function removeUsers(users_to_remove: string[]) {
     ],
   });
 
-  const tx_result = await suiClient.signAndExecuteTransaction({
-    signer: signerKeypair,
-    transaction: transaction,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(transaction, signerKeypair);
 
-  await suiClient.waitForTransaction({
-    digest: tx_result.digest,
-  });
-
-  console.log(tx_result.events);
+  console.log(txResult.events)
 }
 
 export async function initRecovery(new_admin: string) {
-  const { suiClient, ikaClient } = await getClients();
-  //const {signerKeypair, signerAddress} = getSignerKeyPair();
-  const userKeypair = Ed25519Keypair.fromSecretKey(ENV.TEST_RECOVERY_ACC);
-  const userAddr = userKeypair.toSuiAddress();
+  
+  const { signerKeypair } = getSignerData(ENV.TEST_RECOVERY_ACC);
 
   const transaction = new Transaction();
   transaction.setGasBudget(5_000_000);
@@ -336,27 +294,14 @@ export async function initRecovery(new_admin: string) {
     ],
   });
 
-  const tx_result = await suiClient.signAndExecuteTransaction({
-    signer: userKeypair,
-    transaction: transaction,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(transaction, signerKeypair);
 
-  await suiClient.waitForTransaction({
-    digest: tx_result.digest,
-  });
-
-  console.log(tx_result.events);
+  console.log(txResult.events)
 }
 
 export async function finalizeRecovery() {
   //check on rec time status-
-
-  const { suiClient, ikaClient } = await getClients();
-  const userKeypair = Ed25519Keypair.fromSecretKey(ENV.TEST_RECOVERY_ACC);
-  const userAddr = userKeypair.toSuiAddress();
+  const { signerKeypair } = getSignerData(ENV.TEST_RECOVERY_ACC);
 
   const transaction = new Transaction();
 
@@ -373,24 +318,14 @@ export async function finalizeRecovery() {
     ],
   });
 
-  const tx_result = await suiClient.signAndExecuteTransaction({
-    signer: userKeypair,
-    transaction: transaction,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(transaction, signerKeypair);
 
-  await suiClient.waitForTransaction({
-    digest: tx_result.digest,
-  });
-
-  console.log(tx_result.events);
+  console.log(txResult.events)
 }
 
 export async function cancelRecovery() {
-  const { suiClient, ikaClient } = await getClients();
-  const { signerKeypair, signerAddress } = getSignerKeyPair();
+  
+  const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const transaction = new Transaction();
 
@@ -404,27 +339,16 @@ export async function cancelRecovery() {
     arguments: [transaction.object(ENV.WALLET_ADDRESS)],
   });
 
-  const tx_result = await suiClient.signAndExecuteTransaction({
-    signer: signerKeypair,
-    transaction: transaction,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(transaction, signerKeypair);
 
-  await suiClient.waitForTransaction({
-    digest: tx_result.digest,
-  });
-
-  console.log(tx_result.events);
+  console.log(txResult.events)
 }
 
 export async function updateUsersRole(
   users_to_modify: string[],
   new_roles_assigned: number[],
 ) {
-  const { suiClient, ikaClient } = await getClients();
-  const { signerKeypair, signerAddress } = getSignerKeyPair();
+  const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const transaction = new Transaction();
 
@@ -442,19 +366,9 @@ export async function updateUsersRole(
     ],
   });
 
-  const tx_result = await suiClient.signAndExecuteTransaction({
-    signer: signerKeypair,
-    transaction: transaction,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(transaction, signerKeypair);
 
-  await suiClient.waitForTransaction({
-    digest: tx_result.digest,
-  });
-
-  console.log(tx_result.events);
+  console.log(txResult.events);
 }
 
 export async function addRoles(
@@ -463,8 +377,7 @@ export async function addRoles(
   new_roles_recovery_times: number[],
   new_roles_spending_limits: number[],
 ) {
-  const { suiClient, ikaClient } = await getClients();
-  const { signerKeypair, signerAddress } = getSignerKeyPair();
+  const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const transaction = new Transaction();
   transaction.moveCall({
@@ -487,24 +400,14 @@ export async function addRoles(
     ],
   });
 
-  const tx_result = await suiClient.signAndExecuteTransaction({
-    signer: signerKeypair,
-    transaction: transaction,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(transaction, signerKeypair);
 
-  await suiClient.waitForTransaction({
-    digest: tx_result.digest,
-  });
-
-  console.log(tx_result.events);
+  console.log(txResult.events);
 }
 
 export async function deposit(suis: number, ikas: number) {
-  const { suiClient, ikaClient } = await getClients();
-  const { signerKeypair, signerAddress } = getSignerKeyPair();
+
+  const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const transaction = new Transaction();
 
@@ -532,20 +435,10 @@ export async function deposit(suis: number, ikas: number) {
       transaction.object(suiAmountToDeposit),
     ],
   });
-  const tx_result = await suiClient.signAndExecuteTransaction({
-    signer: signerKeypair,
-    transaction: transaction,
-    options: {
-      showEffects: true,
-      showEvents: true,
-    },
-  });
 
-  await suiClient.waitForTransaction({
-    digest: tx_result.digest,
-  });
+  const txResult = await transactionExecutor(transaction, signerKeypair);
 
-  console.log(tx_result.events);
+  console.log(txResult.events)
 }
 
 export async function signMessage(
@@ -553,8 +446,8 @@ export async function signMessage(
   amount: number,
   recipient: string,
 ) {
-  const { suiClient, ikaClient } = await getClients();
-  const { signerKeypair, signerAddress } = getSignerKeyPair();
+  const { ikaClient } = await getClients();
+  const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   let messageBytes: Uint8Array<ArrayBuffer>;
   let dWallet: DWalletWithState<"Active">;
@@ -622,19 +515,9 @@ export async function signMessage(
     ],
   });
 
-  const result = await suiClient.signAndExecuteTransaction({
-    transaction: tx,
-    signer: signerKeypair,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(tx, signerKeypair);
 
-  await suiClient.waitForTransaction({
-    digest: result.digest,
-  });
-
-  const sign_id = result.events[2].parsedJson.sign_id;
+  const sign_id = txResult.events[2].parsedJson.sign_id;
 
   if (chain == "ethereum-base-sepolia") {
     sendTxToEthereumBaseSepolia(sign_id, dWallet, String(amount), recipient);
@@ -650,8 +533,8 @@ export async function signMessage(
 }
 
 export async function emergency_fallback(new_state: boolean) {
-  const { suiClient } = await getClients();
-  const { signerKeypair } = getSignerKeyPair();
+  
+  const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const tx = new Transaction();
 
@@ -665,19 +548,9 @@ export async function emergency_fallback(new_state: boolean) {
     arguments: [tx.object(ENV.WALLET_ADDRESS), tx.pure.bool(new_state)],
   });
 
-  const result = await suiClient.signAndExecuteTransaction({
-    transaction: tx,
-    signer: signerKeypair,
-    options: {
-      showEvents: true,
-    },
-  });
+  const txResult = await transactionExecutor(tx, signerKeypair);
 
-  await suiClient.waitForTransaction({
-    digest: result.digest,
-  });
-
-  console.log(result.events);
+  console.log(txResult.events);
 }
 
 //---------- helpers ----------------
@@ -688,12 +561,6 @@ async function getClients() {
   return { suiClient, ikaClient };
 }
 
-function getSignerKeyPair() {
-  const signerKeypair = Ed25519Keypair.fromSecretKey(ENV.SIGNER_KEY);
-  const signerAddress = signerKeypair.toSuiAddress();
-
-  return { signerKeypair, signerAddress };
-}
 
 function seedGenrator(hkdfKey: string, context: string) {
   const inputKey = Uint8Array.from(hkdfKey);

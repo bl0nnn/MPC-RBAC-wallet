@@ -10,12 +10,12 @@ export const ALGORAND = "algorand-testnet";
 export const ETHEREUM = "ethereum-base-sepolia";
 
 export const CHAIN_CONFIG: Record<string, ChainSettings> = {
-  ALGORAND: {
+  [ALGORAND]: {
     curve: Curve.ED25519,
     signature_algorithm: SignatureAlgorithm.EdDSA, //EdDSA
     hash_scheme: Hash.SHA512, //SHA512
   },
-  ETHEREUM: {
+  [ETHEREUM]: {
     curve: Curve.SECP256K1,
     signature_algorithm: SignatureAlgorithm.ECDSASecp256k1, //ECDSASecp256k1
     hash_scheme: Hash.KECCAK256, //KECCAK256
