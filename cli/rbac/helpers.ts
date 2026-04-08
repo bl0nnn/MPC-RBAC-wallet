@@ -1,6 +1,6 @@
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-import { getSuiClient } from '../config/clients.ts';
+import { getSuiClient, getIkaClient } from '../config/clients.ts';
 import { extract, expand } from "@noble/hashes/hkdf.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { 
@@ -9,16 +9,30 @@ import {
   Hash 
 } from '@ika.xyz/sdk';
 
-const suiClient = await getSuiClient();
+let cachedClients: {
+  suiClient: Awaited<ReturnType<typeof getSuiClient>>;
+  ikaClient: Awaited<ReturnType<typeof getIkaClient>>;
+} | null = null;
+
+export async function getClients() {
+  if (!cachedClients) {
+    const suiClient = await getSuiClient();
+    const ikaClient = await getIkaClient();
+    cachedClients = { suiClient, ikaClient };
+  }
+  return cachedClients;
+}
 
 export async function transactionExecutor(transaction: Transaction, signerKeypair: Ed25519Keypair) {
 
+  const { suiClient } = await getClients();
+  
   const tx_result = await suiClient.signAndExecuteTransaction({
-      signer: signerKeypair,
-      transaction: transaction,
-      options: {
-          showEvents: true,
-      }
+    signer: signerKeypair,
+    transaction: transaction,
+    options: {
+      showEvents: true,
+    }
   });
 
   await suiClient.waitForTransaction({

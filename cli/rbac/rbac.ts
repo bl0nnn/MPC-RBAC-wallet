@@ -9,7 +9,6 @@ import { Transaction, coinWithBalance } from "@mysten/sui/transactions";
 import { bcs } from "@mysten/sui/bcs";
 import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui/utils";
 import { ENV } from "../config/env.ts";
-import { getSuiClient, getIkaClient } from "../config/clients.ts";
 import { CHAIN_CONFIG, IKA_COIN_TYPE } from "../config/constants.ts";
 import {
   prepareEthSigning,
@@ -25,7 +24,8 @@ import {
   get_hash_scheme_id, 
   get_signature_algorithm_id, 
   get_curve_id, 
-  seedGenrator 
+  seedGenrator,
+  getClients
 } from './helpers.ts';
 
 export async function createRbacWallet(
@@ -553,12 +553,3 @@ export async function emergency_fallback(new_state: boolean) {
 
   console.log(txResult.events);
 }
-
-//---------- helpers ----------------
-
-async function getClients() {
-  const suiClient = await getSuiClient();
-  const ikaClient = await getIkaClient();
-  return { suiClient, ikaClient };
-}
-
