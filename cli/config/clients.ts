@@ -6,37 +6,37 @@ import { baseSepolia } from 'viem/chains'
 import { SUI_RPC_NODE } from './constants.ts'
 
 export async function getSuiClient(){
-    const suiClient = new SuiClient({ 
-      url: SUI_RPC_NODE
-    });
+  const suiClient = new SuiClient({ 
+    url: SUI_RPC_NODE
+  });
     
-    return suiClient
+  return suiClient
 }
 
 export async function getIkaClient(){
 
-    const ikaClient = new IkaClient({
-	    suiClient: await getSuiClient(),
-	    config: getNetworkConfig('testnet'),
-	});
+  const ikaClient = new IkaClient({
+      suiClient: await getSuiClient(),
+	  config: getNetworkConfig('testnet'),
+  });
 
-	await ikaClient.initialize();
+  await ikaClient.initialize();
 
-	return ikaClient;
+  return ikaClient;
 
 }
 
 export async function getAlgorandClient(){
-    return AlgorandClient.testNet();
+  return AlgorandClient.testNet();
 }
 
 export async function getEthereumClient(){
 
-    const ethClient = createPublicClient({
-        chain: baseSepolia,
-        transport: http("https://sepolia.base.org")
-    })
+  const ethClient = createPublicClient({
+      chain: baseSepolia,
+      transport: http("https://sepolia.base.org")
+  })
 
-    return ethClient
+  return ethClient
 }
 

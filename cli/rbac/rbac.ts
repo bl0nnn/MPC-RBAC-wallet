@@ -96,9 +96,7 @@ export async function createRbacWallet(
     function: "create_wallet",
 
     arguments: [
-      transaction.object(
-        "0x4d157b7415a298c56ec2cb1dcab449525fa74aec17ddba376a83a7600f2062fc",
-      ),
+      transaction.object(ikaClient.ikaConfig.objects.ikaDWalletCoordinator.objectID),
       transaction.pure(bcs.vector(bcs.U8).serialize(identifier)),
       transaction.pure.id(dwallet_network_encryption_key_id.id),
       transaction.pure(
@@ -125,6 +123,7 @@ export async function createRbacWallet(
 
 export async function addPresignature(chain: string) {
   
+  const ikaClient = getClients();
   const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const transaction = new Transaction();
@@ -144,9 +143,7 @@ export async function addPresignature(chain: string) {
 
     arguments: [
       transaction.object(ENV.WALLET_ADDRESS),
-      transaction.object(
-        "0x4d157b7415a298c56ec2cb1dcab449525fa74aec17ddba376a83a7600f2062fc",
-      ),
+      transaction.object(ikaClient.ikaConfig.objects.ikaDWalletCoordinator.objectID),
       transaction.pure.u32(curve_id),
       transaction.pure.u32(signature_algorithm_id),
     ],
@@ -204,9 +201,7 @@ export async function addDwallet(chain: string) {
     function: "add_dWallet",
 
     arguments: [
-      transaction.object(
-        "0x4d157b7415a298c56ec2cb1dcab449525fa74aec17ddba376a83a7600f2062fc",
-      ),
+      transaction.object(ikaClient.ikaConfig.objects.ikaDWalletCoordinator.objectID),
       transaction.pure(bcs.vector(bcs.U8).serialize(identifier)),
       transaction.pure.id(dwallet_network_encryption_key_id.id),
       transaction.pure(
@@ -413,7 +408,7 @@ export async function deposit(suis: number, ikas: number) {
 
   const ikaAmountToDeposit = transaction.add(
     coinWithBalance({
-      type: `0x1f26bb2f711ff82dcda4d02c77d5123089cb7f8418751474b9fb744ce031526a::ika::IKA`,
+      type: IKA_COIN_TYPE,
       balance: ikas,
     }),
   );
@@ -504,9 +499,7 @@ export async function signMessage(
 
     arguments: [
       tx.object(ENV.WALLET_ADDRESS),
-      tx.object(
-        "0x4d157b7415a298c56ec2cb1dcab449525fa74aec17ddba376a83a7600f2062fc",
-      ),
+      tx.object(ikaClient.ikaConfig.objects.ikaDWalletCoordinator.objectID),
       tx.pure.vector("u8", Array.from(messageBytes)),
       tx.pure.vector("u8", Array.from(messageCentralizedSignature)),
       tx.pure.u32(curve_id),
