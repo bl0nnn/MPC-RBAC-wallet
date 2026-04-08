@@ -1,20 +1,13 @@
 import {
-  Curve,
   UserShareEncryptionKeys,
   createRandomSessionIdentifier,
   prepareDKGAsync,
   createUserSignMessageWithPublicOutput,
-  SignatureAlgorithm,
-  Hash,
   type DWalletWithState,
 } from "@ika.xyz/sdk";
 import { Transaction, coinWithBalance } from "@mysten/sui/transactions";
 import { bcs } from "@mysten/sui/bcs";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { extract, expand } from "@noble/hashes/hkdf.js";
-import { sha256 } from "@noble/hashes/sha2.js";
 import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui/utils";
-
 import { ENV } from "../config/env.ts";
 import { getSuiClient, getIkaClient } from "../config/clients.ts";
 import { CHAIN_CONFIG, IKA_COIN_TYPE } from "../config/constants.ts";
@@ -26,7 +19,14 @@ import {
   prepareAlgorandSigning,
   sendTxToAlgorandTestnet,
 } from "../chains/algorand.ts";
-import { transactionExecutor, getSignerData } from './helpers.ts';
+import { 
+  transactionExecutor, 
+  getSignerData, 
+  get_hash_scheme_id, 
+  get_signature_algorithm_id, 
+  get_curve_id, 
+  seedGenrator 
+} from './helpers.ts';
 
 export async function createRbacWallet(
   chain: string,
@@ -518,6 +518,7 @@ export async function signMessage(
   const txResult = await transactionExecutor(tx, signerKeypair);
 
   const sign_id = txResult.events[2].parsedJson.sign_id;
+  console.log(sign_id)
 
   if (chain == "ethereum-base-sepolia") {
     sendTxToEthereumBaseSepolia(sign_id, dWallet, String(amount), recipient);
@@ -561,90 +562,3 @@ async function getClients() {
   return { suiClient, ikaClient };
 }
 
-
-function seedGenrator(hkdfKey: string, context: string) {
-  const inputKey = Uint8Array.from(hkdfKey);
-  const prk = extract(sha256, inputKey, undefined);
-  const info = new TextEncoder().encode(context);
-
-  return expand(sha256, prk, info, 32);
-}
-
-function get_curve_id(curve: Curve) {
-  /*
-    //ika's supported curves
-    const CURVE_SECP256K1: u32 = 0;
-    const CURVE_SECP256R1: u32 = 1;
-    const CURVE_ED25519: u32 = 2;
-    const CURVE_RISTRETTO: u32 = 3;
-    */
-
-  if (curve == Curve.SECP256K1) {
-    return 0;
-  } else if (curve == Curve.SECP256R1) {
-    return 1;
-  } else if (curve == Curve.ED25519) {
-    return 2;
-  } else if (curve == Curve.RISTRETTO) {
-    return 3;
-  } else {
-    throw new Error("Curve not supported");
-  }
-}
-
-function get_signature_algorithm_id(chain_config: any) {
-  if (
-    chain_config.curve == Curve.SECP256K1 &&
-    chain_config.signature_algorithm == SignatureAlgorithm.ECDSASecp256k1
-  ) {
-    return 0;
-  } else if (
-    chain_config.curve == Curve.SECP256K1 &&
-    chain_config.signature_algorithm == SignatureAlgorithm.Taproot
-  ) {
-    return 1;
-  } else if (chain_config.curve == Curve.SECP256R1) {
-    return 0;
-  } else if (chain_config.curve == Curve.ED25519) {
-    return 0;
-  } else if (chain_config.curve == Curve.RISTRETTO) {
-    return 0;
-  } else {
-    throw new Error("Signature algorithm not recognized");
-  }
-}
-
-function get_hash_scheme_id(chain_config: any) {
-  if (
-    chain_config.curve == Curve.SECP256K1 &&
-    chain_config.signature_algorithm == SignatureAlgorithm.ECDSASecp256k1 &&
-    chain_config.hash_scheme == Hash.KECCAK256
-  ) {
-    return 0;
-  } else if (
-    chain_config.curve == Curve.SECP256K1 &&
-    chain_config.signature_algorithm == SignatureAlgorithm.ECDSASecp256k1 &&
-    chain_config.hash_scheme == Hash.SHA256
-  ) {
-    return 1;
-  } else if (
-    chain_config.curve == Curve.SECP256K1 &&
-    chain_config.signature_algorithm == SignatureAlgorithm.ECDSASecp256k1 &&
-    chain_config.hash_scheme == Hash.DoubleSHA256
-  ) {
-    return 2;
-  } else if (
-    chain_config.curve == Curve.SECP256K1 &&
-    chain_config.signature_algorithm == SignatureAlgorithm.Taproot
-  ) {
-    return 2;
-  } else if (chain_config.curve == Curve.SECP256R1) {
-    return 0;
-  } else if (chain_config.curve == Curve.ED25519) {
-    return 0;
-  } else if (chain_config.curve == Curve.RISTRETTO) {
-    return 0;
-  } else {
-    throw new Error("Hash scheme not recognized");
-  }
-}
