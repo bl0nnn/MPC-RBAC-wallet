@@ -561,7 +561,7 @@ async function main() {
         case "11": {
           const sui = Number(await ask("SUI amount: "));
           const ika = Number(await ask("IKA amount: "));
-          await deposit(sui, ika);
+          await deposit(sui*1000000000, ika * 1000000000);
           break;
         }
 

@@ -123,7 +123,7 @@ export async function createRbacWallet(
 
 export async function addPresignature(chain: string) {
   
-  const ikaClient = getClients();
+  const { ikaClient } = await getClients();
   const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const transaction = new Transaction();
