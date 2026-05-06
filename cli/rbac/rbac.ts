@@ -124,6 +124,7 @@ export async function createRbacWallet(
 export async function addPresignature(chain: string) {
   
   const { ikaClient } = await getClients();
+  console.log(ikaClient.ikaConfig.objects.ikaDWalletCoordinator.objectID)
   const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const transaction = new Transaction();
@@ -221,9 +222,12 @@ export async function addDwallet(chain: string) {
 
 export async function addUsers(new_users: string[], new_users_roles: number[]) {
 
+  console.log(ENV.WALLET_ADDRESS)
+
   const { signerKeypair } = getSignerData(ENV.SIGNER_KEY);
 
   const transaction = new Transaction();
+  transaction.setGasBudget(100000000);
 
   transaction.moveCall({
     package: ENV.PACKAGE_ADDRESS,
