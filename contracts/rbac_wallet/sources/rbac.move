@@ -15,61 +15,37 @@ module rbac_wallet::rbac{
         vec_map::{Self, VecMap}
     };
     use std::string::String;
-    use rbac_wallet::{
-        constants,
-        errors,
-        events
-    };
+    use rbac_wallet::{constants, errors, events};
     use rbac_wallet::errors::no_user_found;
 
     
-
     // === Structs ===
 
     public struct RoleConfig has store, copy, drop {
-
         sign_ability: bool,
-
         spending_limit: u64,
-
         recovery_time_ms: u64
     }
 
     public struct RecoveryRequest has store, drop {
-        
         new_admin: address,
-        
         finalization_time_ms: u64, //the exact moment the recovery will be finallized. Will just be calculated from global clock and user's recovery time associated 
     }
 
-
-    
     //this is the main shared object, the one incapsulating all the data of the actual wallet
     //Uses dynamic fields to store dWallets and presignatures for scalability
     public struct RbacWallet has key, store {
-        
         id: UID,
-
         current_admin: address,
-
         dWallets: Table<String, DWalletCap>,        
-
         users: Table<address, u8>,
-
         roles_config: VecMap<u8, RoleConfig>,
-
         active_recovery: Option<RecoveryRequest>, //if this is none it means no recovery request is active
-
         dwallet_network_encryption_key_id: ID,
-
         presignatures: Table<u8, vector<UnverifiedPresignCap>>, //ika signatures are slow, lets speed them up with a presignatures pool (one for each curve - signature algorithm pair)
-
         ikas: Balance<IKA>,
-        
         suis: Balance<SUI>,
-
         fallback: bool
-
     }
 
 
@@ -80,7 +56,6 @@ module rbac_wallet::rbac{
     //at creation user can generate one dwallet capabillity (just one cause the dkg takes some time and we should work on timeouts on dwallet capabilities creations loop if we want to add more than one at creation + lot of gas).
     //After that he can add other dwalletCaps for preferred chain. 
     public fun create_wallet(
-
         //ika parameters
         coordinator: &mut DWalletCoordinator,
         prepareDKG_session_identifier: vector<u8>,
@@ -113,7 +88,6 @@ module rbac_wallet::rbac{
         assert!(input_sign_abilities.length() == roles_len, errors::config_vectors_lenghts_not_matching!());
         assert!(input_spending_limits.length() == roles_len, errors::config_vectors_lenghts_not_matching!());        
         assert!(input_recovery_times.length() == roles_len, errors::config_vectors_lenghts_not_matching!());
-
         assert!(!input_users.contains(&wallet_creator), errors::double_adding_admin!());
 
         let input_users_len = input_users.length();
@@ -129,7 +103,6 @@ module rbac_wallet::rbac{
             recovery_time_ms: 0
         };
         vec_map::insert(&mut roles_config, constants::get_admin_role_id(), admin_config);
-
 
         
         let wallet_uid = object::new(ctx);
@@ -499,7 +472,6 @@ module rbac_wallet::rbac{
         self: &mut RbacWallet, 
         ctx: &mut TxContext
         ){
-
 
         let sender = ctx.sender();
         assert!(sender == self.current_admin, errors::admin_cannot_recover!());
